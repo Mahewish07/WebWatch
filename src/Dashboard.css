@@ -1,0 +1,201 @@
+/* Dashboard.css */
+
+/* --- 1. Global Styles (Best placed in index.css if possible, but works here too) --- */
+:root {
+    --primary-color: #5b3e9a; /* Deep Purple */
+    --secondary-color: #8c6fe8; /* Lighter Purple/Accent */
+    --background-dark: #1f1d2b; /* Very Dark Background */
+    --card-background: #272535; /* Slightly Lighter Card Background */
+    --text-light: #f0f0f0; /* Light Text */
+    --text-muted: #a0a0a0; /* Muted Text */
+    --sidebar-width: 260px;
+}
+
+/* Apply base styles to the body/app container if not already done */
+body, #root { 
+    margin: 0;
+    padding: 0;
+    background-color: var(--background-dark);
+    font-family: sans-serif;
+    color: var(--text-light);
+}
+
+/* --- 2. Layout Structure (Sidebar + Main Content) --- */
+.dashboard-layout {
+    display: flex;
+    min-height: 100vh; /* Ensure it takes full viewport height */
+}
+
+/* --- 3. Sidebar Styling --- */
+.sidebar {
+    width: var(--sidebar-width);
+    background-color: var(--card-background);
+    padding: 20px 0;
+    height: 100vh;
+    position: sticky; 
+    top: 0;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+    display: flex; /* Flex container for user-info at bottom */
+    flex-direction: column;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    padding: 0 20px 30px;
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.nav-menu {
+    flex-grow: 1; /* Allows nav to take up remaining space before user-info */
+}
+
+.nav-item {
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.nav-item:hover, .nav-item.active {
+    background-color: rgba(91, 62, 154, 0.2); 
+    color: var(--text-light);
+    border-right: 4px solid var(--primary-color);
+}
+
+.nav-item i {
+    margin-right: 15px;
+    font-size: 18px;
+}
+
+/* User Profile in Sidebar */
+.user-info {
+    padding: 15px 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.user-info span {
+    margin-left: 10px;
+}
+
+/* --- 4. Main Content Area --- */
+.main-content {
+    flex-grow: 1;
+    padding: 40px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.header h1 {
+    font-size: 2rem;
+    font-weight: 600;
+}
+
+.add-camera-btn {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.add-camera-btn:hover {
+    background-color: var(--secondary-color);
+}
+
+/* --- 5. Camera Grid Styling --- */
+.camera-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
+    gap: 25px;
+}
+
+.camera-card {
+    background-color: var(--card-background);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.camera-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.4);
+}
+
+.camera-preview {
+    width: 100%;
+    height: 200px;
+    background-color: #000;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.camera-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Offline state styling */
+.camera-preview.offline {
+    background-color: #333;
+    color: var(--text-muted);
+}
+.camera-preview.offline h4 {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.camera-info {
+    padding: 15px;
+}
+
+.camera-info h3 {
+    font-size: 1.2rem;
+    margin-bottom: 5px;
+    color: var(--secondary-color);
+}
+
+.camera-status-text {
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+}
+
+.camera-controls {
+    display: flex;
+    justify-content: space-around;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 10px;
+    margin-top: 10px;
+}
+
+.control-icon {
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 5px;
+    font-size: 1.1rem;
+    transition: color 0.2s;
+}
+
+.control-icon:hover {
+    color: var(--primary-color);
+}
