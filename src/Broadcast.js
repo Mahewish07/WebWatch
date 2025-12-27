@@ -10,6 +10,7 @@ function Broadcast() {
   const [status, setStatus] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [socket, setSocket] = useState(null);
+  const [peerConnection, setPeerConnection] = useState(null);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const navigate = useNavigate();
@@ -36,12 +37,55 @@ function Broadcast() {
 
     newSocket.on('join_room_success', (data) => {
       console.log('Room join success:', data);
-      setStatus(`Connected to room: ${data.room_code}`);
+      setStatus(`✅ Connected to room: ${data.room_code} (${data.clients_in_room} clients)`);
     });
 
     newSocket.on('join_room_error', (data) => {
       console.error('Room join error:', data);
-      setStatus(`Error: ${data.message}`);
+      setStatus(`❌ Error: ${data.message}`);
+    });
+
+    newSocket.on('room_update', (data) => {
+      console.log('📡 Room update:', data);
+      setStatus(`📡 Room ${data.room_code}: ${data.total_clients} connected`);
+      
+      // If viewer joined and we have stream, start WebRTC immediately
+      if (data.total_clients >= 2 && streamRef.current && enteredCode === data.room_code) {
+        console.log('🎯 Viewer joined! Starting WebRTC offer for room:', data.room_code);
+        setTimeout(() => createWebRTCOffer(data.room_code), 500);
+      }
+    });
+
+    // WebRTC Signaling Events
+    newSocket.on('answer', async (data) => {
+      console.log('📨 Received answer from viewer:', data);
+      if (peerConnection) {
+        try {
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+          console.log('✅ Answer processed successfully');
+          setStatus('🎥 Live streaming active!');
+        } catch (error) {
+          console.error('❌ Error processing answer:', error);
+          setStatus('❌ Connection failed');
+        }
+      }
+    });
+
+    newSocket.on('ice-candidate', async (data) => {
+      console.log('📨 Received ICE candidate from viewer:', data);
+      if (peerConnection) {
+        try {
+          await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+          console.log('✅ ICE candidate added');
+        } catch (error) {
+          console.error('❌ Error adding ICE candidate:', error);
+        }
+      }
+    });
+
+    newSocket.on('signaling_error', (data) => {
+      console.error('❌ Signaling error:', data);
+      setStatus('❌ Signaling error: ' + data.message);
     });
 
     // Listen for WebRTC offer (when viewer wants to connect)
@@ -94,6 +138,91 @@ function Broadcast() {
     setStatus('Camera stopped');
   };
 
+  // WebRTC Functions
+  const createWebRTCOffer = async (roomCode) => {
+    try {
+      console.log('Creating WebRTC offer for room:', roomCode);
+      setStatus('🔄 Creating WebRTC connection...');
+      
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      });
+
+      setPeerConnection(pc);
+
+      // Add local stream to peer connection
+      if (streamRef.current) {
+        console.log('Adding tracks to peer connection');
+        streamRef.current.getTracks().forEach(track => {
+          console.log('Adding track:', track.kind);
+          pc.addTrack(track, streamRef.current);
+        });
+      } else {
+        console.error('No stream available for WebRTC');
+        setStatus('❌ No camera stream available');
+        return;
+      }
+
+      // Handle ICE candidates
+      pc.onicecandidate = (event) => {
+        if (event.candidate && socket) {
+          console.log('📤 Sending ICE candidate to viewer');
+          socket.emit('ice-candidate', {
+            candidate: event.candidate,
+            room_code: roomCode
+          });
+        }
+      };
+
+      // Monitor connection state
+      pc.onconnectionstatechange = () => {
+        console.log('🔗 Connection state:', pc.connectionState);
+        switch (pc.connectionState) {
+          case 'connected':
+            setStatus('🎥 Live streaming connected!');
+            break;
+          case 'disconnected':
+            setStatus('⚠️ Connection lost');
+            break;
+          case 'failed':
+            setStatus('❌ Connection failed');
+            break;
+          case 'connecting':
+            setStatus('🔄 Connecting to viewer...');
+            break;
+        }
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        console.log('🧊 ICE connection state:', pc.iceConnectionState);
+      };
+
+      // Create and send offer
+      console.log('Creating offer...');
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      if (socket) {
+        console.log('Sending offer to room:', roomCode);
+        socket.emit('offer', {
+          offer: offer,
+          room_code: roomCode
+        });
+        setStatus('📡 WebRTC offer sent! Waiting for viewer...');
+      } else {
+        console.error('Socket not available');
+        setStatus('❌ Connection error');
+      }
+
+    } catch (error) {
+      console.error('WebRTC offer error:', error);
+      setStatus('❌ WebRTC connection failed: ' + error.message);
+    }
+  };
+
   const handleStartStream = async () => {
     // Validation
     if (enteredCode.length !== 6 || !/^\d+$/.test(enteredCode)) {
@@ -101,7 +230,7 @@ function Broadcast() {
       return;
     }
 
-    setStatus('Connecting...');
+    setStatus('🔄 Starting camera...');
 
     // Start camera first
     await startCamera();
@@ -116,13 +245,21 @@ function Broadcast() {
       // Register camera with backend
       const result = await registerCamera(`Camera-${enteredCode}`);
       if (result.success) {
-        setStatus(`Streaming started! Code: ${enteredCode}`);
-        setIsStreaming(true);
+        setStatus(`✅ Camera registered! Code: ${enteredCode}`);
+        
+        // Wait a bit then create WebRTC offer
+        setTimeout(() => {
+          if (streamRef.current) {
+            console.log('🚀 Auto-creating WebRTC offer...');
+            createWebRTCOffer(enteredCode);
+          }
+        }, 2000);
+        
       } else {
-        setStatus('Camera registered but streaming may be limited');
+        setStatus('⚠️ Camera registered but streaming may be limited');
       }
     } else {
-      setStatus('Error: Not connected to server');
+      setStatus('❌ Error: Not connected to server');
     }
   };
 

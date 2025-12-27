@@ -1,8 +1,20 @@
 // Backend API Configuration
 // Ye file backend ke URLs aur endpoints define karti hai
 
-const API_BASE_URL = 'http://localhost:5000';
-const SOCKET_URL = 'http://localhost:5000';
+// Auto-detect backend URL based on current host
+const getBackendURL = () => {
+  // If running on localhost, use localhost
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:5000';
+  }
+  // Otherwise use the same IP as frontend but port 5000
+  return `http://${window.location.hostname}:5000`;
+};
+
+const API_BASE_URL = getBackendURL();
+const SOCKET_URL = getBackendURL();
+
+console.log('🔗 Backend URL:', API_BASE_URL);
 
 export const API_ENDPOINTS = {
   // Auth endpoints

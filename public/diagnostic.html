@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Diagnostic</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Frontend Diagnostic Tool</h1>
+    <div id="results"></div>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+        
+        async function runDiagnostics() {
+            addResult('🚀 Starting Frontend Diagnostics...', 'info');
+            
+            // Test 1: JavaScript is working
+            addResult('✅ JavaScript is enabled and working', 'success');
+            
+            // Test 2: Check if we can access the main React app
+            try {
+                const response = await fetch('/');
+                if (response.ok) {
+                    addResult('✅ React app is accessible', 'success');
+                } else {
+                    addResult('❌ React app returned error: ' + response.status, 'error');
+                }
+            } catch (error) {
+                addResult('❌ Cannot access React app: ' + error.message, 'error');
+            }
+            
+            // Test 3: Check backend connection
+            try {
+                const response = await fetch('http://localhost:5000');
+                const text = await response.text();
+                if (text.includes('Backend Running')) {
+                    addResult('✅ Backend connection successful', 'success');
+                } else {
+                    addResult('❌ Backend response unexpected: ' + text, 'error');
+                }
+            } catch (error) {
+                addResult('❌ Backend connection failed: ' + error.message, 'error');
+            }
+            
+            // Test 4: Test API endpoint
+            try {
+                const response = await fetch('http://localhost:5000/api/code/generate');
+                const data = await response.json();
+                if (data.code) {
+                    addResult('✅ API endpoints working - Generated code: ' + data.code, 'success');
+                } else {
+                    addResult('❌ API endpoint failed: ' + JSON.stringify(data), 'error');
+                }
+            } catch (error) {
+                addResult('❌ API test failed: ' + error.message, 'error');
+            }
+            
+            // Test 5: Check localStorage
+            try {
+                localStorage.setItem('test', 'working');
+                const test = localStorage.getItem('test');
+                if (test === 'working') {
+                    addResult('✅ localStorage is working', 'success');
+                    localStorage.removeItem('test');
+                } else {
+                    addResult('❌ localStorage not working', 'error');
+                }
+            } catch (error) {
+                addResult('❌ localStorage error: ' + error.message, 'error');
+            }
+            
+            // Test 6: Check if Socket.IO client is available
+            if (typeof io !== 'undefined') {
+                addResult('✅ Socket.IO client is available', 'success');
+            } else {
+                addResult('⚠️ Socket.IO client not loaded (this is normal for this test page)', 'info');
+            }
+            
+            addResult('🏁 Diagnostics complete!', 'info');
+        }
+        
+        // Run diagnostics when page loads
+        window.onload = runDiagnostics;
+    </script>
+</body>
+</html>

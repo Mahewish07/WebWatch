@@ -101,6 +101,7 @@ body {
   align-items: center;
   justify-content: center;
   color: #555;
+  position: relative;
 }
 
 .card-info {
@@ -111,4 +112,5 @@ body {
 }
 
 .status.live { color: #00ff00; }
+.status.waiting { color: #ffaa00; }
 .status.offline { color: #ff4d4d; }

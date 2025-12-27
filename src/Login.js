@@ -16,21 +16,15 @@ function Login() {
     // Clear previous errors
     setError("");
 
-    // 1. Check: Empty Email
+    // 1. Check: Empty Username
     if (email === "") {
-      setError("Email is required. Please enter your email address.");
+      setError("Username is required. Please enter your username.");
       return;
     }
 
-    // 2. Check: Invalid Format
-    if (!email.includes("@")) {
-      setError("Invalid email format. Please include an '@' symbol.");
-      return;
-    }
-
-    // 3. Check: Password Length
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
+    // 2. Check: Password Length
+    if (password.length < 3) {
+      setError("Password must be at least 3 characters long.");
       return;
     }
 
@@ -68,8 +62,8 @@ function Login() {
 
         <div className="input-group">
           <input 
-            type="email" 
-            placeholder="Email (use: admin)" 
+            type="text" 
+            placeholder="Username (use: admin)" 
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={loading}

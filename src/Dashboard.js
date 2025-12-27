@@ -11,9 +11,8 @@ function Dashboard() {
   // --- ACTUAL LOGIC: Shuruaat mein list KHALI hai ---
   const [cameras, setCameras] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showCodeModal, setShowCodeModal] = useState(false);
-  const [generatedCode, setGeneratedCode] = useState('');
   const [socket, setSocket] = useState(null);
+  const [peerConnections, setPeerConnections] = useState({});
 
   // Check if user is logged in
   useEffect(() => {
@@ -41,8 +40,53 @@ function Dashboard() {
 
     // Listen for room updates (when camera joins)
     newSocket.on('room_update', (data) => {
-      console.log('Room update:', data);
+      console.log('📡 Dashboard room update:', data);
       // Update camera status when someone joins the room
+      if (data.room_code) {
+        setCameras(prevCameras => 
+          prevCameras.map(camera => {
+            if (camera.code === data.room_code) {
+              const updatedCamera = { ...camera, status: data.total_clients >= 2 ? "Live" : "Waiting" };
+              
+              // If camera just went live, prepare for WebRTC
+              if (updatedCamera.status === "Live" && camera.status === "Waiting") {
+                console.log('🎥 Camera went live, ready for WebRTC offers from room:', data.room_code);
+              }
+              
+              return updatedCamera;
+            }
+            return camera;
+          })
+        );
+      }
+    });
+
+    newSocket.on('join_room_success', (data) => {
+      console.log('Room join success:', data);
+    });
+
+    newSocket.on('join_room_error', (data) => {
+      console.error('Room join error:', data);
+    });
+
+    // WebRTC Signaling Events
+    newSocket.on('offer', async (data) => {
+      console.log('📨 Received offer from camera:', data);
+      await handleOffer(data);
+    });
+
+    newSocket.on('answer', async (data) => {
+      console.log('📨 Received answer from camera:', data);
+      await handleAnswer(data);
+    });
+
+    newSocket.on('ice-candidate', async (data) => {
+      console.log('📨 Received ICE candidate:', data);
+      await handleIceCandidate(data);
+    });
+
+    newSocket.on('signaling_error', (data) => {
+      console.error('❌ Signaling error:', data);
     });
 
     setSocket(newSocket);
@@ -73,8 +117,6 @@ function Dashboard() {
     
     if (result.success) {
       const code = result.code;
-      setGeneratedCode(code);
-      setShowCodeModal(true);
       
       // Naya camera object banayo with code
       const newCamera = {
@@ -101,9 +143,131 @@ function Dashboard() {
     setLoading(false);
   };
 
-  // Close code modal
-  const closeCodeModal = () => {
-    setShowCodeModal(false);
+  // WebRTC Handler Functions
+  const createPeerConnection = (roomCode) => {
+    console.log('🔄 Creating peer connection for room:', roomCode);
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    });
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate && socket) {
+        console.log('📤 Sending ICE candidate to camera');
+        socket.emit('ice-candidate', {
+          candidate: event.candidate,
+          room_code: roomCode
+        });
+      }
+    };
+
+    pc.ontrack = (event) => {
+      console.log('🎥 Received remote stream from camera!');
+      console.log('Stream details:', event.streams[0]);
+      
+      // Try multiple ways to find the video element
+      const videoElement = document.getElementById(`video-${roomCode}`);
+      const videoByQuery = document.querySelector(`video[id="video-${roomCode}"]`);
+      const allVideos = document.querySelectorAll('video');
+      
+      console.log('Looking for video element:', `video-${roomCode}`);
+      console.log('Found by ID:', videoElement);
+      console.log('Found by query:', videoByQuery);
+      console.log('All video elements:', allVideos);
+      
+      const targetVideo = videoElement || videoByQuery || allVideos[allVideos.length - 1];
+      
+      if (targetVideo) {
+        targetVideo.srcObject = event.streams[0];
+        targetVideo.play().catch(e => console.log('Play error:', e));
+        console.log('✅ Video stream attached to element:', targetVideo.id);
+        
+        // Force update camera status to show video is playing
+        setCameras(prevCameras => 
+          prevCameras.map(camera => 
+            camera.code === roomCode 
+              ? { ...camera, status: "Live", streaming: true }
+              : camera
+          )
+        );
+      } else {
+        console.error('❌ No video element found for room:', roomCode);
+        console.error('Available elements:', document.querySelectorAll('[id*="video"]'));
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      console.log('🔗 Connection state:', pc.connectionState);
+      if (pc.connectionState === 'connected') {
+        console.log('🎉 WebRTC connection established!');
+      }
+    };
+
+    return pc;
+  };
+
+  // Debug function - call from browser console
+  window.debugDashboard = () => {
+    console.log('📊 Dashboard Debug Info:');
+    console.log('Cameras:', cameras);
+    console.log('Peer Connections:', peerConnections);
+    console.log('Video Elements:', document.querySelectorAll('video'));
+    console.log('Socket Connected:', socket?.connected);
+  };
+
+  const handleOffer = async (data) => {
+    try {
+      const { offer, room_code } = data;
+      console.log('🎯 Processing offer for room:', room_code);
+      
+      const pc = createPeerConnection(room_code);
+      setPeerConnections(prev => ({ ...prev, [room_code]: pc }));
+      
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      console.log('✅ Remote description set');
+      
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      console.log('✅ Answer created and local description set');
+      
+      if (socket) {
+        socket.emit('answer', {
+          answer: answer,
+          room_code: room_code
+        });
+        console.log('📤 Answer sent to camera');
+      }
+    } catch (error) {
+      console.error('❌ Error handling offer:', error);
+    }
+  };
+
+  const handleAnswer = async (data) => {
+    const { answer, room_code } = data;
+    const pc = peerConnections[room_code];
+    if (pc) {
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        console.log('✅ Answer processed for room:', room_code);
+      } catch (error) {
+        console.error('❌ Error handling answer:', error);
+      }
+    }
+  };
+
+  const handleIceCandidate = async (data) => {
+    const { candidate, room_code } = data;
+    const pc = peerConnections[room_code];
+    if (pc) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        console.log('✅ ICE candidate added for room:', room_code);
+      } catch (error) {
+        console.error('❌ Error adding ICE candidate:', error);
+      }
+    }
   };
 
   return (
@@ -135,63 +299,6 @@ function Dashboard() {
           </button>
         </div>
 
-        {/* Code Modal - Shows generated pairing code */}
-        {showCodeModal && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1000
-          }}>
-            <div style={{
-              backgroundColor: '#1a1a2e',
-              padding: '40px',
-              borderRadius: '15px',
-              textAlign: 'center',
-              border: '2px solid #5d5dff',
-              maxWidth: '400px',
-              width: '90%'
-            }}>
-              <h2 style={{ color: '#fff', marginBottom: '20px' }}>
-                Camera Pairing Code
-              </h2>
-              <div style={{
-                fontSize: '48px',
-                fontWeight: 'bold',
-                color: '#5d5dff',
-                letterSpacing: '10px',
-                marginBottom: '20px',
-                fontFamily: 'monospace'
-              }}>
-                {generatedCode}
-              </div>
-              <p style={{ color: '#ccc', marginBottom: '20px' }}>
-                Enter this code on your camera device to connect
-              </p>
-              <button 
-                onClick={closeCodeModal}
-                style={{
-                  padding: '10px 30px',
-                  backgroundColor: '#5d5dff',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '5px',
-                  cursor: 'pointer',
-                  fontSize: '16px'
-                }}
-              >
-                Got It
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* --- CAMERA GRID --- */}
         <div className="camera-grid">
           
@@ -205,12 +312,45 @@ function Dashboard() {
             cameras.map((cam) => (
               <div key={cam.id} className="camera-card">
                 <div className="video-placeholder">
-                  <span>📹 Video Feed: {cam.name}</span>
+                  <video
+                    id={`video-${cam.code}`}
+                    autoPlay
+                    playsInline
+                    muted
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      backgroundColor: '#000',
+                      display: cam.status === "Live" ? 'block' : 'none'
+                    }}
+                  />
+                  {cam.status !== "Live" && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      color: '#888',
+                      textAlign: 'center'
+                    }}>
+                      <span>📹 Video Feed: {cam.name}</span>
+                      <br />
+                      <small>Status: {cam.status}</small>
+                    </div>
+                  )}
                   {cam.code && (
                     <div style={{
-                      fontSize: '12px',
-                      color: '#888',
-                      marginTop: '10px'
+                      position: 'absolute',
+                      bottom: '10px',
+                      left: '10px',
+                      fontSize: '14px',
+                      color: '#5d5dff',
+                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                      padding: '5px 10px',
+                      borderRadius: '5px',
+                      fontFamily: 'monospace',
+                      fontWeight: 'bold'
                     }}>
                       Code: {cam.code}
                     </div>

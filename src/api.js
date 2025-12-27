@@ -44,10 +44,15 @@ export const generateCode = async () => {
       method: 'GET',
     });
 
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
     const data = await response.json();
     return { success: true, code: data.code };
   } catch (error) {
-    return { success: false, error: 'Failed to generate code' };
+    console.error('Generate code error:', error);
+    return { success: false, error: 'Failed to generate code: ' + error.message };
   }
 };
 
