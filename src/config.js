@@ -3,18 +3,22 @@
 
 // Auto-detect backend URL based on current host
 const getBackendURL = () => {
+  const protocol = window.location.protocol; // http: or https:
+  const hostname = window.location.hostname;
+  
   // If running on localhost, use localhost
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://localhost:5000';
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return `${protocol}//localhost:5000`;
   }
   // Otherwise use the same IP as frontend but port 5000
-  return `http://${window.location.hostname}:5000`;
+  return `${protocol}//${hostname}:5000`;
 };
 
 const API_BASE_URL = getBackendURL();
 const SOCKET_URL = getBackendURL();
 
 console.log('🔗 Backend URL:', API_BASE_URL);
+console.log('🔒 Protocol:', window.location.protocol);
 
 export const API_ENDPOINTS = {
   // Auth endpoints

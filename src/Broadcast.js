@@ -11,6 +11,8 @@ function Broadcast() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [socket, setSocket] = useState(null);
   const [peerConnection, setPeerConnection] = useState(null);
+  const [codeValidated, setCodeValidated] = useState(false);
+  const [validationError, setValidationError] = useState("");
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const navigate = useNavigate();
@@ -37,12 +39,26 @@ function Broadcast() {
 
     newSocket.on('join_room_success', (data) => {
       console.log('Room join success:', data);
-      setStatus(`✅ Connected to room: ${data.room_code} (${data.clients_in_room} clients)`);
+      setStatus(`✅ Code validated! Room: ${data.room_code}`);
+      setCodeValidated(true);
+      setValidationError("");
     });
 
     newSocket.on('join_room_error', (data) => {
       console.error('Room join error:', data);
-      setStatus(`❌ Error: ${data.message}`);
+      setStatus(`❌ Invalid Code: ${data.message}`);
+      setValidationError("Invalid code! Please check and try again.");
+      setCodeValidated(false);
+      
+      // Reset form to allow retry
+      setIsStreaming(false);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
     });
 
     newSocket.on('room_update', (data) => {
@@ -52,7 +68,7 @@ function Broadcast() {
       // If viewer joined and we have stream, start WebRTC immediately
       if (data.total_clients >= 2 && streamRef.current && enteredCode === data.room_code) {
         console.log('🎯 Viewer joined! Starting WebRTC offer for room:', data.room_code);
-        setTimeout(() => createWebRTCOffer(data.room_code), 500);
+        setTimeout(() => createWebRTCOffer(data.room_code), 1500); // Increased delay
       }
     });
 
@@ -71,7 +87,7 @@ function Broadcast() {
       }
     });
 
-    newSocket.on('ice-candidate', async (data) => {
+    newSocket.on('ice_candidate', async (data) => {
       console.log('📨 Received ICE candidate from viewer:', data);
       if (peerConnection) {
         try {
@@ -96,12 +112,27 @@ function Broadcast() {
 
     setSocket(newSocket);
 
-    // Cleanup
+    // Cleanup on component unmount
     return () => {
-      newSocket.close();
+      // Stop camera if streaming
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
+      
+      // Close peer connection
+      if (peerConnection) {
+        peerConnection.close();
+      }
+      
+      // Leave room if connected
+      if (enteredCode) {
+        newSocket.emit('leave_room', {
+          code: enteredCode,
+          type: 'camera'
+        });
+      }
+      
+      newSocket.close();
     };
   }, []);
 
@@ -134,6 +165,21 @@ function Broadcast() {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    
+    // Close peer connection
+    if (peerConnection) {
+      peerConnection.close();
+      setPeerConnection(null);
+    }
+    
+    // Leave the room to notify dashboard
+    if (socket && enteredCode) {
+      socket.emit('leave_room', {
+        code: enteredCode,
+        type: 'camera'
+      });
+    }
+    
     setIsStreaming(false);
     setStatus('Camera stopped');
   };
@@ -170,7 +216,7 @@ function Broadcast() {
       pc.onicecandidate = (event) => {
         if (event.candidate && socket) {
           console.log('📤 Sending ICE candidate to viewer');
-          socket.emit('ice-candidate', {
+          socket.emit('ice_candidate', {
             candidate: event.candidate,
             room_code: roomCode
           });
@@ -223,25 +269,69 @@ function Broadcast() {
     }
   };
 
-  const handleStartStream = async () => {
+  // Validate code before starting camera
+  const validateCode = async () => {
     // Validation
     if (enteredCode.length !== 6 || !/^\d+$/.test(enteredCode)) {
+      setValidationError("Please enter a valid 6-digit code.");
       setStatus("Please enter a valid 6-digit code.");
-      return;
+      return false;
     }
 
-    setStatus('🔄 Starting camera...');
+    setStatus('🔄 Validating code...');
+    setValidationError("");
 
-    // Start camera first
-    await startCamera();
-
-    // Join room with entered code (as camera)
+    // Try to join room to validate code
     if (socket) {
       socket.emit('join_room', {
         code: enteredCode,
         type: 'camera'
       });
+      
+      // Wait for validation response
+      return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          setValidationError("Code validation timeout. Please try again.");
+          setStatus("❌ Code validation failed");
+          resolve(false);
+        }, 5000);
 
+        const successHandler = () => {
+          clearTimeout(timeout);
+          socket.off('join_room_success', successHandler);
+          socket.off('join_room_error', errorHandler);
+          resolve(true);
+        };
+
+        const errorHandler = () => {
+          clearTimeout(timeout);
+          socket.off('join_room_success', successHandler);
+          socket.off('join_room_error', errorHandler);
+          resolve(false);
+        };
+
+        socket.on('join_room_success', successHandler);
+        socket.on('join_room_error', errorHandler);
+      });
+    }
+    
+    return false;
+  };
+
+  const handleStartStream = async () => {
+    // First validate the code
+    const isValid = await validateCode();
+    
+    if (!isValid) {
+      return; // Don't start camera if code is invalid
+    }
+
+    setStatus('🔄 Starting camera...');
+
+    try {
+      // Start camera
+      await startCamera();
+      
       // Register camera with backend
       const result = await registerCamera(`Camera-${enteredCode}`);
       if (result.success) {
@@ -258,8 +348,30 @@ function Broadcast() {
       } else {
         setStatus('⚠️ Camera registered but streaming may be limited');
       }
-    } else {
-      setStatus('❌ Error: Not connected to server');
+    } catch (error) {
+      setStatus('❌ Failed to start camera');
+      setValidationError("Camera access denied. Please allow camera permissions.");
+    }
+  };
+
+  // Reset form for retry
+  const resetForm = () => {
+    setEnteredCode("");
+    setStatus("");
+    setValidationError("");
+    setCodeValidated(false);
+    setIsStreaming(false);
+    
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    if (peerConnection) {
+      peerConnection.close();
+      setPeerConnection(null);
     }
   };
 
@@ -286,16 +398,43 @@ function Broadcast() {
               // Only allow numbers
               const value = e.target.value.replace(/\D/g, '');
               setEnteredCode(value);
+              // Clear validation error when user types
+              if (validationError) {
+                setValidationError("");
+                setStatus("");
+              }
             }}
             maxLength="6"
             disabled={isStreaming}
             // Thoda sa custom style taaki code bada aur center mein dikhe
-            style={{ textAlign: 'center', letterSpacing: '5px', fontSize: '20px', fontWeight: 'bold' }}
+            style={{ 
+              textAlign: 'center', 
+              letterSpacing: '5px', 
+              fontSize: '20px', 
+              fontWeight: 'bold',
+              borderColor: validationError ? '#ff4444' : '#333'
+            }}
           />
         </div>
 
+        {/* Validation Error */}
+        {validationError && (
+          <div style={{ 
+            color: '#ff4444', 
+            fontSize: '14px', 
+            marginBottom: '15px',
+            textAlign: 'center',
+            backgroundColor: 'rgba(255, 68, 68, 0.1)',
+            padding: '10px',
+            borderRadius: '5px',
+            border: '1px solid #ff4444'
+          }}>
+            ❌ {validationError}
+          </div>
+        )}
+
         {/* Status message */}
-        {status && (
+        {status && !validationError && (
           <div style={{ 
             color: isStreaming ? '#4caf50' : '#888', 
             fontSize: '14px', 
@@ -332,13 +471,26 @@ function Broadcast() {
         {/* Buttons */}
         <div style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
           {!isStreaming ? (
-            <button 
-              className="login-btn" 
-              onClick={handleStartStream}
-              disabled={enteredCode.length !== 6}
-            >
-              Start Streaming
-            </button>
+            <>
+              <button 
+                className="login-btn" 
+                onClick={handleStartStream}
+                disabled={enteredCode.length !== 6}
+              >
+                Start Streaming
+              </button>
+              
+              {/* Retry button for invalid codes */}
+              {validationError && (
+                <button 
+                  className="login-btn" 
+                  onClick={resetForm}
+                  style={{ backgroundColor: '#ffc107', color: '#000' }}
+                >
+                  Try Again
+                </button>
+              )}
+            </>
           ) : (
             <button 
               className="login-btn" 
