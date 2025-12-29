@@ -14,7 +14,7 @@ function Home() {
                     </div>
                     <nav>
                         <ul>
-                            <li><span>Features</span></li>
+                            <li><Link to="/features">Features</Link></li>
                             {/* Login Page Link */}
                             <li><Link to="/login">Log In</Link></li>
                             <li><Link to="/signup" className="btn-signup">Sign Up</Link></li>

@@ -1,0 +1,52 @@
+.broadcast-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #0f172a;
+    color: white;
+}
+.broadcast-card {
+    text-align: center;
+    width: 90%;
+    max-width: 500px;
+    background: #1e293b;
+    padding: 30px;
+    border-radius: 20px;
+}
+.code-input {
+    width: 100%;
+    padding: 15px;
+    margin: 20px 0;
+    font-size: 24px;
+    text-align: center;
+    border-radius: 10px;
+    border: 2px solid #3b82f6;
+    background: #0f172a;
+    color: white;
+    font-weight: bold;
+    letter-spacing: 5px;
+}
+.start-btn {
+    width: 100%;
+    padding: 15px;
+    background: #3b82f6;
+    color: white;
+    font-size: 18px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+}
+.live-video {
+    width: 100%;
+    border-radius: 10px;
+    background: black;
+    margin-bottom: 20px;
+}
+.stop-btn {
+    background: #ef4444;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+}

@@ -1,0 +1,72 @@
+/* Dark Theme Background */
+.features-container {
+  background-color: #0f1014;
+  min-height: 100vh;
+  color: white;
+  font-family: sans-serif;
+}
+
+/* Navbar Styling */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 50px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+}
+
+.nav-links { display: flex; gap: 20px; align-items: center; }
+.nav-link { color: #ccc; text-decoration: none; font-size: 16px; transition: 0.3s; }
+.nav-link:hover { color: white; }
+
+/* Main Content Area */
+.features-content {
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.features-content h2 { font-size: 3rem; margin-bottom: 10px; color: #3b82f6; }
+.subtitle { color: #aaa; margin-bottom: 50px; font-size: 1.2rem; }
+
+/* Grid System for Boxes */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 30px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Individual Feature Box */
+.feature-box {
+  background: #1f2937;
+  padding: 40px;
+  border-radius: 15px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: 1px solid #333;
+}
+
+.feature-box:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 10px 30px rgba(59, 130, 246, 0.2); /* Blue glow effect */
+  border-color: #3b82f6;
+}
+
+.icon { font-size: 3rem; margin-bottom: 20px; }
+.feature-box h3 { font-size: 1.5rem; margin-bottom: 15px; }
+.feature-box p { color: #aaa; line-height: 1.6; }
+
+/* Bottom Button */
+.cta-section { margin-top: 80px; }
+.cta-btn {
+  background: #3b82f6;
+  color: white;
+  padding: 15px 40px;
+  border-radius: 30px;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 1.2rem;
+  transition: 0.3s;
+}
+.cta-btn:hover { background: #2563eb; box-shadow: 0 0 20px #2563eb; }

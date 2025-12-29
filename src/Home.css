@@ -45,6 +45,8 @@ nav ul {
   display: flex;
   align-items: center;
   gap: 30px;
+  margin: 0;
+  padding: 0;
 }
 
 nav a, nav span {
@@ -258,9 +260,55 @@ nav a:hover {
   line-height: 1.4;
 }
 
+/* ========================================= */
+/* --- MOBILE RESPONSIVE (SINGLE LINE / HORIZONTAL) --- */
 @media (max-width: 768px) {
-  .hero-text h1 { font-size: 36px; }
-  .hero-image { margin-top: 50px; justify-content: center; }
-  .illustration-container { transform: scale(0.8); }
-  nav ul { display: none; }
+  
+  /* 1. Header ko wapis Row (Horizontal) kar do */
+  header {
+    flex-direction: row; 
+    justify-content: space-between; /* Dur-dur faila do */
+    align-items: center;
+    padding: 15px 5px; /* Side padding kam karo taaki jagah mile */
+    height: auto;
+  }
+
+  /* 2. Logo chhota karo taaki baki cheezon ke liye jagah bache */
+  .logo {
+    font-size: 1.1rem; /* Text size kam */
+    margin-bottom: 0; /* Vertical gap hatao */
+    flex-shrink: 0; /* Logo ko dabne mat do */
+  }
+  
+  .logo svg {
+    width: 20px;
+    height: 20px;
+    margin-right: 5px;
+  }
+
+  /* 3. Navigation Links ko wapis ek line mein lao */
+  nav ul {
+    display: flex !important;
+    flex-direction: row; /* Horizontal */
+    gap: 8px; /* Beech ka gap bahut kam karo */
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  /* 4. Links ka font chhota karo */
+  nav a, nav span {
+    font-size: 0.8rem; /* 12px size */
+  }
+
+  /* 5. Button ko chhota aur compact karo */
+  .btn-signup {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    white-space: nowrap; /* Button text ko tutne mat do */
+  }
+  
+  /* Hero Text Adjustments (Ye waisa hi rahega) */
+  .hero-text { padding-right: 0; text-align: center; margin-top: 20px; }
+  .hero-text h1 { font-size: 2rem; }
+  .hero-image { margin-top: 40px; }
 }

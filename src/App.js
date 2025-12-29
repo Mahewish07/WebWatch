@@ -5,6 +5,8 @@ import Signup from './Signup';
 import Dashboard from './Dashboard';
 import Home from './Home';
 import Broadcast from './Broadcast';
+import Features from './Features';
+import LinkCamera from './LinkCamera';
 
 function App() {
   return (
@@ -23,6 +25,12 @@ function App() {
         
         {/* Camera Broadcast Page */}
         <Route path="/broadcast" element={<Broadcast />} />
+
+        {/* Features */}
+        <Route path="/features" element={<Features />} />
+
+        {/*Link Camera*/}
+        <Route path="/link-camera" element={<LinkCamera />} />
       </Routes>
     </Router>
   );
