@@ -31,6 +31,9 @@ function Login() {
         // Token save kar rahe hain taaki 'Add Camera' chal sake
         localStorage.setItem('token', data.access_token || data.token);
         if(data.user) localStorage.setItem('user', JSON.stringify(data.user));
+        // Mark user as logged in so Dashboard allows access
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('username', formData.username || (data.user && data.user.username) || '');
         
         navigate('/dashboard');
       } else {

@@ -33,6 +33,9 @@ function Signup() {
 
     // 4. Success -> Welcome Message & Redirect
     alert("Account created successfully! Welcome, " + name + ".");
+    // Mark as logged in
+    localStorage.setItem('isLoggedIn', 'true');
+    localStorage.setItem('username', name);
     navigate('/dashboard');
   };
   // ------------------------------------
