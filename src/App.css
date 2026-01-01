@@ -1,5 +1,54 @@
+/* Global Reset for Full Height Layout - Mobile Optimized */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  /* Mobile viewport fix - multiple fallbacks */
+  height: 100vh;
+  height: 100dvh; /* Dynamic viewport height */
+  height: -webkit-fill-available;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Mobile Safari viewport fix */
+@supports (-webkit-touch-callout: none) {
+  html, body, #root {
+    height: -webkit-fill-available;
+    height: 100dvh;
+  }
+}
+
+/* iOS specific fixes */
+@supports (-webkit-appearance: none) {
+  html, body, #root {
+    height: 100vh;
+    height: 100dvh;
+    height: -webkit-fill-available;
+  }
+}
+
 .App {
   text-align: center;
+  height: 100%;
+  height: 100vh;
+  height: 100dvh;
+  height: -webkit-fill-available;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
 }
 
 .App-logo {

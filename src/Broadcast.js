@@ -4,6 +4,7 @@ import './Login.css'; // Magic Line: Purana design reuse kar rahe hain! 😎
 import { SOCKET_URL } from './config';
 import { registerCamera } from './api';
 import io from 'socket.io-client';
+import VideoFallback from './VideoFallback';
 
 function Broadcast() {
   const [enteredCode, setEnteredCode] = useState("");
@@ -13,6 +14,7 @@ function Broadcast() {
   const [peerConnection, setPeerConnection] = useState(null);
   const [codeValidated, setCodeValidated] = useState(false);
   const [validationError, setValidationError] = useState("");
+  const [fallbackSystem, setFallbackSystem] = useState(null);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const navigate = useNavigate();
@@ -62,13 +64,21 @@ function Broadcast() {
     });
 
     newSocket.on('room_update', (data) => {
-      console.log('📡 Room update:', data);
+      console.log('📡 Camera room update:', data);
       setStatus(`📡 Room ${data.room_code}: ${data.total_clients} connected`);
       
-      // If viewer joined and we have stream, start WebRTC immediately
+      // If dashboard joined and we have stream, start WebRTC immediately
       if (data.total_clients >= 2 && streamRef.current && enteredCode === data.room_code) {
-        console.log('🎯 Viewer joined! Starting WebRTC offer for room:', data.room_code);
-        setTimeout(() => createWebRTCOffer(data.room_code), 1500); // Increased delay
+        console.log('🎯 Dashboard connected! Starting WebRTC offer for room:', data.room_code);
+        // Start WebRTC with shorter delay
+        setTimeout(() => {
+          createWebRTCOffer(data.room_code);
+        }, 1000);
+      }
+      
+      // If we're alone in room, show waiting status
+      if (data.total_clients === 1 && enteredCode === data.room_code) {
+        setStatus('⏳ Waiting for dashboard to connect...');
       }
     });
 
@@ -87,7 +97,7 @@ function Broadcast() {
       }
     });
 
-    newSocket.on('ice_candidate', async (data) => {
+    newSocket.on('ice-candidate', async (data) => {
       console.log('📨 Received ICE candidate from viewer:', data);
       if (peerConnection) {
         try {
@@ -139,20 +149,65 @@ function Broadcast() {
   // Start camera stream
   const startCamera = async () => {
     try {
+      console.log('🎥 Requesting camera access...');
+      setStatus('🎥 Starting camera...');
+      
+      // Request camera with optimal settings
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: {
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+          frameRate: { ideal: 30, max: 60 },
+          facingMode: 'environment' // Use back camera if available
+        },
         audio: false
+      });
+      
+      console.log('✅ Camera access granted');
+      console.log('Stream details:', {
+        id: stream.id,
+        active: stream.active,
+        tracks: stream.getTracks().map(t => ({
+          kind: t.kind,
+          label: t.label,
+          enabled: t.enabled,
+          readyState: t.readyState
+        }))
       });
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
+        
+        // Wait for video to load metadata
+        videoRef.current.onloadedmetadata = () => {
+          console.log('📹 Video metadata loaded:', {
+            videoWidth: videoRef.current.videoWidth,
+            videoHeight: videoRef.current.videoHeight,
+            duration: videoRef.current.duration
+          });
+        };
       }
+      
       setIsStreaming(true);
-      setStatus('Camera started');
+      setStatus('✅ Camera started successfully');
+      
     } catch (error) {
-      console.error('Error accessing camera:', error);
-      setStatus('Error: Could not access camera. Please allow camera permissions.');
+      console.error('❌ Camera access error:', error);
+      let errorMessage = 'Could not access camera. ';
+      
+      if (error.name === 'NotAllowedError') {
+        errorMessage += 'Please allow camera permissions and try again.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage += 'No camera found on this device.';
+      } else if (error.name === 'NotReadableError') {
+        errorMessage += 'Camera is being used by another application.';
+      } else {
+        errorMessage += error.message;
+      }
+      
+      setStatus('❌ ' + errorMessage);
+      setValidationError(errorMessage);
     }
   };
 
@@ -172,6 +227,12 @@ function Broadcast() {
       setPeerConnection(null);
     }
     
+    // Stop fallback system
+    if (fallbackSystem) {
+      fallbackSystem.stop();
+      setFallbackSystem(null);
+    }
+    
     // Leave the room to notify dashboard
     if (socket && enteredCode) {
       socket.emit('leave_room', {
@@ -187,13 +248,19 @@ function Broadcast() {
   // WebRTC Functions
   const createWebRTCOffer = async (roomCode) => {
     try {
-      console.log('Creating WebRTC offer for room:', roomCode);
+      console.log('🚀 Creating WebRTC offer for room:', roomCode);
       setStatus('🔄 Creating WebRTC connection...');
+      
+      // Close existing peer connection if any
+      if (peerConnection) {
+        peerConnection.close();
+      }
       
       const pc = new RTCPeerConnection({
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' }
         ]
       });
 
@@ -201,13 +268,15 @@ function Broadcast() {
 
       // Add local stream to peer connection
       if (streamRef.current) {
-        console.log('Adding tracks to peer connection');
-        streamRef.current.getTracks().forEach(track => {
-          console.log('Adding track:', track.kind);
+        console.log('📹 Adding camera tracks to peer connection');
+        const tracks = streamRef.current.getTracks();
+        tracks.forEach(track => {
+          console.log(`Adding ${track.kind} track:`, track.label);
           pc.addTrack(track, streamRef.current);
         });
+        console.log(`✅ Added ${tracks.length} tracks to peer connection`);
       } else {
-        console.error('No stream available for WebRTC');
+        console.error('❌ No camera stream available for WebRTC');
         setStatus('❌ No camera stream available');
         return;
       }
@@ -215,11 +284,13 @@ function Broadcast() {
       // Handle ICE candidates
       pc.onicecandidate = (event) => {
         if (event.candidate && socket) {
-          console.log('📤 Sending ICE candidate to viewer');
-          socket.emit('ice_candidate', {
+          console.log('📤 Sending ICE candidate to dashboard');
+          socket.emit('ice-candidate', {  // Changed from ice_candidate to ice-candidate
             candidate: event.candidate,
             room_code: roomCode
           });
+        } else if (!event.candidate) {
+          console.log('🏁 ICE gathering complete');
         }
       };
 
@@ -231,58 +302,110 @@ function Broadcast() {
             setStatus('🎥 Live streaming connected!');
             break;
           case 'disconnected':
-            setStatus('⚠️ Connection lost');
+            setStatus('⚠️ Connection lost - attempting reconnect...');
             break;
           case 'failed':
-            setStatus('❌ Connection failed');
+            setStatus('❌ Connection failed - activating fallback...');
+            // Activate fallback system
+            activateFallbackSystem();
             break;
           case 'connecting':
-            setStatus('🔄 Connecting to viewer...');
+            setStatus('🔄 Connecting to dashboard...');
+            break;
+          case 'new':
+            setStatus('🔄 Initializing connection...');
             break;
         }
       };
 
       pc.oniceconnectionstatechange = () => {
         console.log('🧊 ICE connection state:', pc.iceConnectionState);
+        if (pc.iceConnectionState === 'failed') {
+          console.log('🔄 ICE connection failed, restarting...');
+          pc.restartIce();
+        }
       };
 
       // Create and send offer
-      console.log('Creating offer...');
-      const offer = await pc.createOffer();
+      console.log('📝 Creating WebRTC offer...');
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: false,
+        offerToReceiveVideo: false
+      });
+      
       await pc.setLocalDescription(offer);
+      console.log('✅ Local description set');
 
       if (socket) {
-        console.log('Sending offer to room:', roomCode);
+        console.log('📡 Sending offer to dashboard for room:', roomCode);
         socket.emit('offer', {
           offer: offer,
           room_code: roomCode
         });
-        setStatus('📡 WebRTC offer sent! Waiting for viewer...');
+        setStatus('📡 WebRTC offer sent! Waiting for dashboard...');
       } else {
-        console.error('Socket not available');
-        setStatus('❌ Connection error');
+        console.error('❌ Socket not available');
+        setStatus('❌ Connection error - socket unavailable');
       }
 
     } catch (error) {
-      console.error('WebRTC offer error:', error);
+      console.error('❌ WebRTC offer error:', error);
       setStatus('❌ WebRTC connection failed: ' + error.message);
+      
+      // Auto-retry after 5 seconds
+      setTimeout(() => {
+        if (streamRef.current && enteredCode) {
+          console.log('🔄 Auto-retrying WebRTC connection...');
+          createWebRTCOffer(enteredCode);
+        }
+      }, 5000);
+    }
+  };
+
+  // Activate fallback system when WebRTC fails
+  const activateFallbackSystem = () => {
+    console.log('🔄 Activating fallback streaming system...');
+    
+    if (!streamRef.current || !videoRef.current || !enteredCode) {
+      console.error('❌ Cannot activate fallback: missing requirements');
+      return;
+    }
+    
+    // Create and initialize fallback system
+    const fallback = new VideoFallback();
+    fallback.init(enteredCode);
+    
+    // Start fallback streaming
+    const success = fallback.startCameraStream(videoRef.current, enteredCode);
+    
+    if (success) {
+      setFallbackSystem(fallback);
+      setStatus('📡 Fallback streaming active (1s delay)');
+      console.log('✅ Fallback system activated successfully');
+    } else {
+      setStatus('❌ Fallback system failed to start');
+      console.error('❌ Failed to activate fallback system');
     }
   };
 
   // Validate code before starting camera
   const validateCode = async () => {
+    console.log('🔍 Validating code:', enteredCode, 'Type:', typeof enteredCode);
     // Validation
     if (enteredCode.length !== 6 || !/^\d+$/.test(enteredCode)) {
+      console.error('❌ Invalid code format:', enteredCode);
       setValidationError("Please enter a valid 6-digit code.");
       setStatus("Please enter a valid 6-digit code.");
       return false;
     }
 
+    console.log('✅ Code format valid, attempting to join room...');
     setStatus('🔄 Validating code...');
     setValidationError("");
 
     // Try to join room to validate code
     if (socket) {
+      console.log('📡 Mobile joining room as camera:', enteredCode);
       socket.emit('join_room', {
         code: enteredCode,
         type: 'camera'
@@ -337,9 +460,9 @@ function Broadcast() {
       if (result.success) {
         setStatus(`✅ Camera registered! Code: ${enteredCode}`);
         
-        // Wait a bit then create WebRTC offer
+        // Auto-start WebRTC if dashboard is already connected
         setTimeout(() => {
-          if (streamRef.current) {
+          if (streamRef.current && socket) {
             console.log('🚀 Auto-creating WebRTC offer...');
             createWebRTCOffer(enteredCode);
           }
@@ -347,10 +470,18 @@ function Broadcast() {
         
       } else {
         setStatus('⚠️ Camera registered but streaming may be limited');
+        
+        // Still try WebRTC even if registration failed
+        setTimeout(() => {
+          if (streamRef.current) {
+            createWebRTCOffer(enteredCode);
+          }
+        }, 2000);
       }
     } catch (error) {
+      console.error('❌ Failed to start camera:', error);
       setStatus('❌ Failed to start camera');
-      setValidationError("Camera access denied. Please allow camera permissions.");
+      setValidationError("Camera access denied. Please allow camera permissions and try again.");
     }
   };
 
@@ -372,6 +503,10 @@ function Broadcast() {
     if (peerConnection) {
       peerConnection.close();
       setPeerConnection(null);
+    }
+    if (fallbackSystem) {
+      fallbackSystem.stop();
+      setFallbackSystem(null);
     }
   };
 

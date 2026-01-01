@@ -4,6 +4,7 @@ import './Dashboard.css';
 import { generateCode } from './api';
 import { SOCKET_URL } from './config';
 import io from 'socket.io-client';
+import VideoFallback from './VideoFallback';
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -276,61 +277,129 @@ function Dashboard() {
     pc.ontrack = (event) => {
       console.log('🎥 Received remote stream from camera!');
       console.log('Stream details:', event.streams[0]);
+      console.log('Track details:', event.streams[0].getTracks());
       
-      // Wait for video element to be rendered with retry mechanism
-      const waitForVideoElement = (attempts = 0) => {
-        const videoElement = document.getElementById(`video-${roomCode}`);
+      // Immediate video element setup
+      const videoElement = document.getElementById(`video-${roomCode}`);
+      if (videoElement) {
+        console.log('✅ Video element found immediately, attaching stream');
         
-        if (videoElement && attempts < 15) {
-          console.log('✅ Video element found, attaching stream');
-          
-          // Force show video element first
-          videoElement.style.display = 'block';
-          videoElement.style.width = '100%';
-          videoElement.style.height = '100%';
-          videoElement.style.objectFit = 'cover';
-          
-          // Attach stream
-          videoElement.srcObject = event.streams[0];
-          
-          // Force play
-          videoElement.play().then(() => {
+        // Force show and configure video element
+        videoElement.style.display = 'block';
+        videoElement.style.width = '100%';
+        videoElement.style.height = '100%';
+        videoElement.style.objectFit = 'cover';
+        videoElement.style.backgroundColor = '#000';
+        
+        // Attach stream
+        videoElement.srcObject = event.streams[0];
+        
+        // Force play with multiple attempts
+        const playVideo = async (attempts = 0) => {
+          try {
+            await videoElement.play();
             console.log('✅ Video playing successfully');
-          }).catch(e => {
-            console.log('Play error:', e);
-            // Try to play again after a short delay
-            setTimeout(() => {
-              videoElement.play().catch(err => console.log('Retry play error:', err));
-            }, 500);
-          });
+            
+            // Update camera status to streaming
+            setCameras(prevCameras => 
+              prevCameras.map(camera => 
+                camera.code === roomCode 
+                  ? { ...camera, status: "Live", streaming: true, connecting: false }
+                  : camera
+              )
+            );
+          } catch (e) {
+            console.log(`Play attempt ${attempts + 1} failed:`, e);
+            if (attempts < 5) {
+              setTimeout(() => playVideo(attempts + 1), 500);
+            } else {
+              console.error('❌ Failed to play video after 5 attempts');
+            }
+          }
+        };
+        
+        playVideo();
+      } else {
+        // Fallback: Wait for video element with retry
+        console.log('⏳ Video element not found, waiting...');
+        const waitForVideoElement = (attempts = 0) => {
+          const videoEl = document.getElementById(`video-${roomCode}`);
           
-          // Force update camera status
-          setCameras(prevCameras => 
-            prevCameras.map(camera => 
-              camera.code === roomCode 
-                ? { ...camera, status: "Live", streaming: true }
-                : camera
-            )
-          );
-        } else if (attempts < 15) {
-          console.log(`⏳ Waiting for video element... attempt ${attempts + 1}`);
-          setTimeout(() => waitForVideoElement(attempts + 1), 300);
-        } else {
-          console.error('❌ Video element not found after 15 attempts');
-        }
-      };
-      
-      waitForVideoElement();
+          if (videoEl && attempts < 20) {
+            console.log('✅ Video element found after waiting, attaching stream');
+            
+            videoEl.style.display = 'block';
+            videoEl.style.width = '100%';
+            videoEl.style.height = '100%';
+            videoEl.style.objectFit = 'cover';
+            videoEl.style.backgroundColor = '#000';
+            
+            videoEl.srcObject = event.streams[0];
+            
+            videoEl.play().then(() => {
+              console.log('✅ Video playing after wait');
+              setCameras(prevCameras => 
+                prevCameras.map(camera => 
+                  camera.code === roomCode 
+                    ? { ...camera, status: "Live", streaming: true, connecting: false }
+                    : camera
+                )
+              );
+            }).catch(e => {
+              console.log('Play error after wait:', e);
+              setTimeout(() => {
+                videoEl.play().catch(err => console.log('Retry play error:', err));
+              }, 500);
+            });
+          } else if (attempts < 20) {
+            console.log(`⏳ Waiting for video element... attempt ${attempts + 1}`);
+            setTimeout(() => waitForVideoElement(attempts + 1), 200);
+          } else {
+            console.error('❌ Video element not found after 20 attempts');
+          }
+        };
+        
+        waitForVideoElement();
+      }
     };
 
     pc.onconnectionstatechange = () => {
       console.log('🔗 Connection state:', pc.connectionState);
       if (pc.connectionState === 'connected') {
         console.log('🎉 WebRTC connection established!');
+      } else if (pc.connectionState === 'failed') {
+        console.log('❌ WebRTC failed, activating fallback system...');
+        activateFallbackSystem(roomCode);
       }
     };
 
     return pc;
+  };
+
+  // Activate fallback system when WebRTC fails
+  const activateFallbackSystem = (roomCode) => {
+    console.log('🔄 Activating fallback system for room:', roomCode);
+    
+    // Create fallback system instance
+    const fallback = new VideoFallback();
+    fallback.init(roomCode);
+    
+    // Start dashboard display
+    const videoElement = document.getElementById(`video-${roomCode}`);
+    if (videoElement) {
+      fallback.startDashboardDisplay(roomCode, videoElement);
+      
+      // Update camera status
+      setCameras(prevCameras => 
+        prevCameras.map(camera => 
+          camera.code === roomCode 
+            ? { ...camera, status: "Live", fallback: true, streaming: true }
+            : camera
+        )
+      );
+      
+      console.log('✅ Fallback system activated for room:', roomCode);
+    }
   };
 
   // Debug function - call from browser console
@@ -383,16 +452,23 @@ function Dashboard() {
       const { offer, room_code } = data;
       console.log('🎯 Processing offer for room:', room_code);
       
-      const pc = createPeerConnection(room_code);
-      setPeerConnections(prev => ({ ...prev, [room_code]: pc }));
+      // Create peer connection if not exists
+      let pc = peerConnections[room_code];
+      if (!pc) {
+        pc = createPeerConnection(room_code);
+        setPeerConnections(prev => ({ ...prev, [room_code]: pc }));
+      }
       
+      // Set remote description
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       console.log('✅ Remote description set');
       
+      // Create and set local description
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       console.log('✅ Answer created and local description set');
       
+      // Send answer back to camera
       if (socket) {
         socket.emit('answer', {
           answer: answer,
@@ -400,8 +476,26 @@ function Dashboard() {
         });
         console.log('📤 Answer sent to camera');
       }
+      
+      // Update camera status to show connection in progress
+      setCameras(prevCameras => 
+        prevCameras.map(camera => 
+          camera.code === room_code 
+            ? { ...camera, status: "Live", connecting: true }
+            : camera
+        )
+      );
+      
     } catch (error) {
       console.error('❌ Error handling offer:', error);
+      // Update camera status to show error
+      setCameras(prevCameras => 
+        prevCameras.map(camera => 
+          camera.code === data.room_code 
+            ? { ...camera, status: "Error", error: error.message }
+            : camera
+        )
+      );
     }
   };
 
@@ -516,6 +610,21 @@ function Dashboard() {
                       )}
                     </div>
                   ) : null}
+                  {cam.fallback && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '10px',
+                      right: '10px',
+                      backgroundColor: 'rgba(255, 193, 7, 0.9)',
+                      color: '#000',
+                      padding: '5px 10px',
+                      borderRadius: '15px',
+                      fontSize: '12px',
+                      fontWeight: 'bold'
+                    }}>
+                      📡 Fallback Mode
+                    </div>
+                  )}
                   {cam.code && (
                     <div style={{
                       position: 'absolute',

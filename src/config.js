@@ -8,10 +8,10 @@ const getBackendURL = () => {
   
   // If running on localhost, use localhost
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return `${protocol}//localhost:5000`;
+    return `${protocol}//localhost:5001`;
   }
-  // Otherwise use the same IP as frontend but port 5000
-  return `${protocol}//${hostname}:5000`;
+  // Otherwise use the same IP as frontend but port 5001
+  return `${protocol}//${hostname}:5001`;
 };
 
 const API_BASE_URL = getBackendURL();
