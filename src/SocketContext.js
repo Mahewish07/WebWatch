@@ -10,7 +10,7 @@ export const useSocket = () => {
 export const SocketProvider = ({ children }) => {
   // ⚠️ IMPORTANT: 'localhost' हटाकर अपना Laptop IP डालें (e.g. 192.168.1.5)
   // ताकि Phone भी कनेक्ट हो सके।
-  const socket = useMemo(() => io('http://127.0.0.1:5001'), []);
+  const socket = useMemo(() => io('https://10.25.1.169:5001'), []);
 
   return (
     <SocketContext.Provider value={socket}>

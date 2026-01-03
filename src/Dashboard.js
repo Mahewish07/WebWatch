@@ -18,7 +18,7 @@ function Dashboard() {
 
   useEffect(() => {
     // ⚡ V3 LOGIC: Working Connection
-    const newSocket = io(SOCKET_URL, { secure: false, rejectUnauthorized: false });
+    const newSocket = io(SOCKET_URL, { secure: true, rejectUnauthorized: false });
 
     // Handle incoming video offer
     newSocket.on('offer', async (data) => {

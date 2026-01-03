@@ -17,7 +17,7 @@ function Broadcast() {
   useEffect(() => {
     // ⚡ V3 LOGIC (The Brain): Polling + HTTPS + 100MB Buffer
     const newSocket = io(SOCKET_URL, { 
-        secure: false, 
+        secure: true, 
         rejectUnauthorized: false 
     });
 
