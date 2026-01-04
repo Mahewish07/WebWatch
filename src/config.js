@@ -1,7 +1,7 @@
 // src/config.js
 // Your Python backend is running on HTTPS, so we must match it here.
 
-const BACKEND_URL = 'https://10.250.82.157:5000'; 
+const BACKEND_URL = 'https://192.168.1.11:5000'; 
 
 export const API_BASE_URL = BACKEND_URL;
 export const SOCKET_URL = BACKEND_URL;
