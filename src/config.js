@@ -1,12 +1,30 @@
 // src/config.js
-// Your Python backend is running on HTTPS, so we must match it here.
+// Dynamic IP configuration - automatically detects the current host
 
-const BACKEND_URL = 'https://192.168.1.11:5000'; 
+// Function to get the current host IP dynamically
+const getCurrentHost = () => {
+  // Always use the current window location host (works for both localhost and IP)
+  const protocol = 'https:'; // Backend always runs on HTTPS
+  const host = window.location.hostname;
+  
+  // If accessing via localhost, connect to localhost backend
+  // If accessing via IP, connect to IP backend
+  return `${protocol}//${host}:5000`;
+};
+
+const BACKEND_URL = getCurrentHost();
 
 export const API_BASE_URL = BACKEND_URL;
 export const SOCKET_URL = BACKEND_URL;
 
+// Enhanced debugging
+console.log('🌐 Current window location:', window.location.href);
+console.log('🏠 Window hostname:', window.location.hostname);
 console.log('🔗 Backend URL set to:', API_BASE_URL);
+console.log('📡 Socket URL set to:', SOCKET_URL);
+
+// Alternative method: Use environment variable for backend URL
+const BACKEND_URL_ENV = process.env.REACT_APP_BACKEND_URL || getCurrentHost();
 
 export const API_ENDPOINTS = {
   LOGIN: `${API_BASE_URL}/api/auth/login`,

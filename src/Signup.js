@@ -1,82 +1,122 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import './Login.css'; // Wahi same design use kar rahe hain
+import { API_ENDPOINTS } from './config';
+import './Login.css';
 
 function Signup() {
-  // --- Variables (State) ---
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   
-  // Navigation hook (Page badalne ke liye)
   const navigate = useNavigate();
 
-  // --- SIGN UP LOGIC (Validation) ---
-  const handleSignup = () => {
-    // 1. Check: Empty Name
-    if (name === "") {
-      alert("Full Name is required. Please enter your name.");
+  // --- SIGN UP LOGIC (Backend Integration) ---
+  const handleSignup = async () => {
+    setError("");
+    
+    // 1. Validation
+    if (!username || !password) {
+      setError("Username and password are required");
       return;
     }
 
-    // 2. Check: Empty Email OR Invalid Format
-    if (email === "" || !email.includes("@")) {
-      alert("Please enter a valid email address.");
+    if (username.length < 3) {
+      setError("Username must be at least 3 characters");
       return;
     }
 
-    // 3. Check: Password Strength
-    if (password.length < 6) {
-      alert("Password is too short. It must be at least 6 characters long.");
+    if (password.length < 3) {
+      setError("Password must be at least 3 characters");
       return;
     }
 
-    // 4. Success -> Welcome Message & Redirect
-    alert("Account created successfully! Welcome, " + name + ".");
-    // Mark as logged in
-    localStorage.setItem('isLoggedIn', 'true');
-    localStorage.setItem('username', name);
-    navigate('/dashboard');
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    // 2. Send to Backend
+    setLoading(true);
+    try {
+      const response = await fetch(API_ENDPOINTS.SIGNUP, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.status === 'ok') {
+        alert("✅ Account created successfully! Please login.");
+        navigate('/login');
+      } else {
+        setError(data.message || "Signup failed");
+      }
+    } catch (err) {
+      console.error("Signup error:", err);
+      setError("Connection error. Please check if backend is running.");
+    } finally {
+      setLoading(false);
+    }
   };
-  // ------------------------------------
 
   return (
     <div className="login-container">
       <div className="login-card">
         
-        {/* Brand Logo */}
         <div className="brand">
           <span>⭕</span> WebWatch
         </div>
 
-        <h2>Create a new account</h2>
+        <h2>Create New Account</h2>
+
+        {error && (
+          <div style={{
+            color: '#ff4444',
+            background: 'rgba(255, 68, 68, 0.1)',
+            padding: '10px',
+            borderRadius: '5px',
+            marginBottom: '15px',
+            fontSize: '14px'
+          }}>
+            {error}
+          </div>
+        )}
 
         <div className="input-group">
-          {/* Full Name Input */}
           <input 
             type="text" 
-            placeholder="Full Name" 
-            onChange={(e) => setName(e.target.value)}
+            placeholder="Username" 
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            disabled={loading}
           />
           
-          {/* Email Input */}
-          <input 
-            type="email" 
-            placeholder="Email" 
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          
-          {/* Password Input */}
           <input 
             type="password" 
             placeholder="Password" 
+            value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
+          />
+
+          <input 
+            type="password" 
+            placeholder="Confirm Password" 
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            disabled={loading}
           />
         </div>
 
-        {/* Button dabane par handleSignup chalega */}
-        <button className="login-btn" onClick={handleSignup}>
-          Sign Up
+        <button 
+          className="login-btn" 
+          onClick={handleSignup}
+          disabled={loading}
+        >
+          {loading ? "Creating Account..." : "Sign Up"}
         </button>
 
         <p className="signup-text">
