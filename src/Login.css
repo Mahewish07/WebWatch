@@ -4,18 +4,22 @@
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background: radial-gradient(circle at center, #1a2a6c, #b21f1f, #fdbb2d); /* Fallback */
-  background: radial-gradient(circle, #101b3b 0%, #050505 100%); /* Deep Dark Blue */
+  background: radial-gradient(circle at center, #1a2a6c, #b21f1f, #fdbb2d);
+  /* Fallback */
+  background: radial-gradient(circle, #101b3b 0%, #050505 100%);
+  /* Deep Dark Blue */
   font-family: 'Segoe UI', sans-serif;
 }
 
 /* Dark Card (Dabba) */
 .login-card {
-  background-color: #0f172a; /* Dark Blue-Grey */
+  background-color: #0f172a;
+  /* Dark Blue-Grey */
   padding: 40px;
   width: 320px;
   border-radius: 15px;
-  box-shadow: 0 0 20px rgba(0, 120, 255, 0.2); /* Blue Glow */
+  box-shadow: 0 0 20px rgba(0, 120, 255, 0.2);
+  /* Blue Glow */
   text-align: center;
   border: 1px solid #1e293b;
 }
@@ -30,6 +34,7 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
+  gap: 10px;
 }
 
 h2 {
@@ -39,28 +44,67 @@ h2 {
 }
 
 /* Inputs */
+.input-group {
+  position: relative;
+  margin-bottom: 15px;
+}
+
 .input-group input {
   width: 100%;
   padding: 12px;
-  margin-bottom: 15px;
   border: 1px solid #334155;
   border-radius: 8px;
-  background-color: #1e293b; /* Dark Input */
+  background-color: #1e293b;
+  /* Dark Input */
   color: white;
   font-size: 14px;
   box-sizing: border-box;
 }
 
+.password-input-group {
+  position: relative;
+}
+
+.password-input-group input {
+  padding-right: 45px;
+  /* Make space for the eye icon */
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.password-toggle-btn:hover {
+  color: #3b82f6;
+}
+
+.password-toggle-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
 .input-group input:focus {
   outline: none;
-  border-color: #3b82f6; 
+  border-color: #3b82f6;
 }
 
 /* Links */
 .forgot-pass {
   text-align: left;
   font-size: 12px;
-  color: #3b82f6; /* Blue Text */
+  color: #3b82f6;
+  /* Blue Text */
   margin-bottom: 20px;
   cursor: pointer;
 }
@@ -69,7 +113,8 @@ h2 {
 .login-btn {
   width: 100%;
   padding: 12px;
-  background: linear-gradient(90deg, #0066ff, #00ccff); /* Blue Gradient */
+  background: linear-gradient(90deg, #0066ff, #00ccff);
+  /* Blue Gradient */
   color: white;
   border: none;
   border-radius: 8px;

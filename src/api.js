@@ -4,6 +4,18 @@
 import { API_ENDPOINTS } from './config';
 
 /**
+ * Get authorization header with JWT token
+ * @returns {Object} Headers object with Authorization
+ */
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': token ? `Bearer ${token}` : ''
+  };
+};
+
+/**
  * Login API call
  * @param {string} username - User ka username
  * @param {string} password - User ka password
@@ -27,7 +39,7 @@ export const login = async (username, password) => {
     if (response.status === 200) {
       return { success: true, data: data };
     } else {
-      return { success: false, error: data.message || 'Login failed' };
+      return { success: false, error: data.message || data.error || 'Login failed' };
     }
   } catch (error) {
     return { success: false, error: 'Connection failed. Please check if backend is running.' };
@@ -35,13 +47,14 @@ export const login = async (username, password) => {
 };
 
 /**
- * Generate 6-digit code for camera pairing
+ * Generate 6-digit code for camera pairing (requires authentication)
  * @returns {Promise} Response with code
  */
 export const generateCode = async () => {
   try {
     const response = await fetch(API_ENDPOINTS.GENERATE_CODE, {
       method: 'GET',
+      headers: getAuthHeaders(),
     });
 
     if (!response.ok) {
@@ -57,6 +70,80 @@ export const generateCode = async () => {
 };
 
 /**
+ * Get user's cameras (requires authentication)
+ * @returns {Promise} Response data
+ */
+export const getUserCameras = async () => {
+  try {
+    const response = await fetch(API_ENDPOINTS.GET_CAMERAS, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { success: true, cameras: data };
+  } catch (error) {
+    console.error('Get cameras error:', error);
+    return { success: false, error: 'Failed to fetch cameras' };
+  }
+};
+
+/**
+ * Save camera for user (requires authentication)
+ * @param {string} name - Camera name
+ * @param {string} code - Camera code
+ * @param {string} status - Camera status
+ * @returns {Promise} Response data
+ */
+export const saveCamera = async (name, code, status = 'Waiting') => {
+  try {
+    const response = await fetch(API_ENDPOINTS.SAVE_CAMERA, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ name, code, status }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error('Save camera error:', error);
+    return { success: false, error: 'Failed to save camera' };
+  }
+};
+
+/**
+ * Delete camera (requires authentication)
+ * @param {number} cameraId - Camera ID
+ * @returns {Promise} Response data
+ */
+export const deleteCamera = async (cameraId) => {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.DELETE_CAMERA}/${cameraId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error('Delete camera error:', error);
+    return { success: false, error: 'Failed to delete camera' };
+  }
+};
+
+/**
  * Register a new camera
  * @param {string} name - Camera ka naam
  * @returns {Promise} Response data
@@ -65,9 +152,7 @@ export const registerCamera = async (name) => {
   try {
     const response = await fetch(API_ENDPOINTS.REGISTER_CAMERA, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ name: name }),
     });
 
@@ -86,6 +171,7 @@ export const getCameraStatus = async () => {
   try {
     const response = await fetch(API_ENDPOINTS.CAMERA_STATUS, {
       method: 'GET',
+      headers: getAuthHeaders(),
     });
 
     const data = await response.json();
@@ -111,4 +197,3 @@ export const healthCheck = async () => {
     return { success: false, error: 'Backend is not running' };
   }
 };
-

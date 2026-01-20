@@ -16,9 +16,42 @@
   backdrop-filter: blur(10px);
 }
 
-.nav-links { display: flex; gap: 20px; align-items: center; }
-.nav-link { color: #ccc; text-decoration: none; font-size: 16px; transition: 0.3s; }
-.nav-link:hover { color: white; }
+.nav-links {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.nav-link {
+  color: #ccc;
+  text-decoration: none;
+  font-size: 16px;
+  transition: 0.3s;
+}
+
+.nav-link:hover {
+  color: white;
+}
+
+.logo {
+  font-size: 24px;
+  font-weight: bold;
+  color: white;
+}
+
+.signup-btn {
+  background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+  padding: 8px 20px;
+  border-radius: 5px;
+  color: white;
+  font-weight: bold;
+  text-decoration: none;
+  transition: opacity 0.3s;
+}
+
+.signup-btn:hover {
+  opacity: 0.9;
+}
 
 /* Main Content Area */
 .features-content {
@@ -26,8 +59,17 @@
   text-align: center;
 }
 
-.features-content h2 { font-size: 3rem; margin-bottom: 10px; color: #3b82f6; }
-.subtitle { color: #aaa; margin-bottom: 50px; font-size: 1.2rem; }
+.features-content h2 {
+  font-size: 3rem;
+  margin-bottom: 10px;
+  color: #3b82f6;
+}
+
+.subtitle {
+  color: #aaa;
+  margin-bottom: 50px;
+  font-size: 1.2rem;
+}
 
 /* Grid System for Boxes */
 .features-grid {
@@ -49,16 +91,31 @@
 
 .feature-box:hover {
   transform: translateY(-10px);
-  box-shadow: 0 10px 30px rgba(59, 130, 246, 0.2); /* Blue glow effect */
+  box-shadow: 0 10px 30px rgba(59, 130, 246, 0.2);
+  /* Blue glow effect */
   border-color: #3b82f6;
 }
 
-.icon { font-size: 3rem; margin-bottom: 20px; }
-.feature-box h3 { font-size: 1.5rem; margin-bottom: 15px; }
-.feature-box p { color: #aaa; line-height: 1.6; }
+.icon {
+  font-size: 3rem;
+  margin-bottom: 20px;
+}
+
+.feature-box h3 {
+  font-size: 1.5rem;
+  margin-bottom: 15px;
+}
+
+.feature-box p {
+  color: #aaa;
+  line-height: 1.6;
+}
 
 /* Bottom Button */
-.cta-section { margin-top: 80px; }
+.cta-section {
+  margin-top: 80px;
+}
+
 .cta-btn {
   background: #3b82f6;
   color: white;
@@ -69,4 +126,8 @@
   font-size: 1.2rem;
   transition: 0.3s;
 }
-.cta-btn:hover { background: #2563eb; box-shadow: 0 0 20px #2563eb; }
+
+.cta-btn:hover {
+  background: #2563eb;
+  box-shadow: 0 0 20px #2563eb;
+}
